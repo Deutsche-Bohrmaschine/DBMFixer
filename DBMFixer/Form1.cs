@@ -2,7 +2,10 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
+using System.Net.Http;
 using System.Threading.Tasks;
+using System.Web.Hosting;
 using System.Windows.Forms;
 namespace DBMFixer
 {
@@ -33,7 +36,7 @@ namespace DBMFixer
             }
         }
 
-        private void StartAction()
+        private async void StartAction()
         {
             if (checkBox1.Checked)
             {
@@ -42,26 +45,57 @@ namespace DBMFixer
 
             if (checkBox2.Checked)
             {
-                ReinstallBattleye();
+                await ReinstallBattleye();
             }
         }
 
-        private Task ReinstallBattleye()
+        private async Task ReinstallBattleye()
         {
             var battleyeDir = Path.Combine(dayZInstallPath, "BattlEye");
+            InvokeProgressbar(0, 100);
             if (Directory.Exists(battleyeDir))
             {
                 WriteLog($"found battleye on {battleyeDir}");
-                var consolePath = Path.Combine(battleyeDir, "Uninstall_BattlEye.bat");
-                var installPathConsole = Path.Combine(battleyeDir, "Install_BattlEye.bat");
-                WriteLog($"start uninstall BE!");
-                Process.Start(consolePath);
-                WriteLog($"BE -> Uninstalled!");
-                WriteLog($"Start Install ....");
-                Process.Start(installPathConsole);
-                WriteLog("BE Reinstalled!");
+                var files = Directory.GetFiles(battleyeDir);
+                var subDirs = Directory.GetDirectories(battleyeDir);
+                InvokeProgressbar(5, 100);
+                foreach (var dir in subDirs)
+                {
+                    Directory.Delete(dir, true);
+                }
+                foreach (var file in files)
+                {
+                    File.Delete(file);
+                }
+
+                InvokeProgressbar(10, 100);
+
+                WriteLog("BE -> Deleted!");
+
+                using (HttpClient client = new HttpClient())
+                {
+                    WriteLog("BE -> Start downloading from Git!");
+                    client.BaseAddress = new Uri("https://github.com/Deutsche-Bohrmaschine/");
+                    var result = await client.GetAsync("DBMFixer/releases/download/0.0.0/BattleeyeBack.zip");
+                    WriteLog("BE -> Successfully downladed backup file!");
+                    var backFile = Path.Combine(battleyeDir, "BattleyeBack.zip");
+                    InvokeProgressbar(90, 100);
+                    using (var fs = new FileStream(backFile, FileMode.CreateNew))
+                    {
+                        WriteLog("BE -> Start Writing Zip!");
+                        await result.Content.CopyToAsync(fs);
+                        WriteLog($"BE -> Successfully Written file to {backFile}");
+                    }
+
+                    InvokeProgressbar(95, 100);
+                    WriteLog("BE -> Start extraction of BE files!");
+                    ZipFile.ExtractToDirectory(backFile, battleyeDir);
+                    WriteLog("BE -> Successfully Reinstalled start delete of backup files!");
+                    File.Delete(backFile);
+                    InvokeProgressbar(100, 100);
+                    WriteLog("BE -> Successfully Deleted backup file! Reinstall process done!");
+                }
             }
-            return Task.CompletedTask;
         }
 
         private void WriteLog(string log)
@@ -154,6 +188,7 @@ namespace DBMFixer
 
         private void Form1_Load(object sender, EventArgs e)
         {
+
             try
             {
                 Steamworks.SteamClient.Init(221100, true);
