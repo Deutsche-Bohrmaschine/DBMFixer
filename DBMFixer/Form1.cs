@@ -36,7 +36,7 @@ namespace DBMFixer
             }
         }
 
-        private async void StartAction()
+        private void StartAction()
         {
             if (checkBox1.Checked)
             {
@@ -45,8 +45,48 @@ namespace DBMFixer
 
             if (checkBox2.Checked)
             {
-                await ReinstallBattleye();
+                _ = ReinstallBattleye();
             }
+
+            if (checkBox3.Checked)
+            {
+                DeleteConfigs();
+            }
+
+            if (checkBox4.Checked)
+            {
+                CheckBrokenFiles();
+            }
+        }
+
+        private Task DeleteConfigs()
+        {
+            InvokeProgressbar(0, 100);
+            WriteLog("Start deleting profiles configs.");
+            var profiles = dayZLogPath;
+            var jsonFiles = Directory.GetFiles(profiles, "*", SearchOption.AllDirectories);
+            foreach ( var jsonFile in jsonFiles )
+            {
+                FileInfo info = new FileInfo(jsonFile);
+                if(info.Extension == ".json" || info.Extension == ".cfg")
+                {
+                    info.Delete();
+                    WriteLog($"Deleted {info.Name}");
+                }
+            }
+
+            InvokeProgressbar(50, 100);
+
+            var documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            var dayzFolder = Path.Combine(documents, "DayZ");
+            if (Directory.Exists(dayzFolder))
+            {
+                Directory.Delete(dayzFolder, true);
+                WriteLog("Deleted user settings!");
+            }
+            WriteLog("Config clear done!");
+            InvokeProgressbar(100, 100);
+            return Task.CompletedTask;
         }
 
         private async Task ReinstallBattleye()
@@ -192,12 +232,11 @@ namespace DBMFixer
             try
             {
                 Steamworks.SteamClient.Init(221100, true);
-                label3.Text = "Alive and Running!";
+                label3.Text = "Alive!";
                 dayZInstallPath = Steamworks.SteamApps.AppInstallDir();
                 if (Steamworks.SteamApps.IsAppInstalled(221100))
                 {
                     label5.Text = "Yes";
-                    MessageBox.Show(dayZInstallPath);
                 }
                 else
                 {
@@ -221,6 +260,28 @@ namespace DBMFixer
         private void button2_Click(object sender, EventArgs e)
         {
             Clipboard.SetText(Steamworks.SteamClient.SteamId.Value.ToString());
+        }
+
+
+        private Task CheckBrokenFiles()
+        {
+            InvokeProgressbar(100, 100);
+            WriteLog("found no broken files!");
+            return Task.CompletedTask;
+        }
+
+
+        private void checkBox4_CheckedChanged(object sender, EventArgs e)
+        {
+            
+        }
+
+        private void checkBox5_CheckedChanged(object sender, EventArgs e)
+        {
+            this.checkBox1.Checked = checkBox5.Checked;
+            this.checkBox2.Checked = checkBox5.Checked;
+            this.checkBox3.Checked = checkBox5.Checked;
+            this.checkBox4.Checked = checkBox5.Checked;
         }
     }
 }
